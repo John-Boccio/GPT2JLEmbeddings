@@ -10,12 +10,16 @@ from enum import Enum
 class JLReductionMethod(Enum):
     GAUSSIAN = 0
     SPARSE = 1
+    LEARNED = 2
 
     def generate_proj_matrix(self, n_components, n_features, device):
         if self == self.GAUSSIAN:
             S = torch.tensor(_gaussian_random_matrix(n_components, n_features), dtype=torch.float, device=device)
         elif self == self.SPARSE:
             S = torch.tensor(_sparse_random_matrix(n_components, n_features).todense(), dtype=torch.float, device=device)
+        elif self == self.LEARNED:
+            S = torch.empty(n_components, n_features, dtype=torch.float, device=device)
+            nn.init.normal_(S, 0.0, 0.02)
         return S
 
 
@@ -28,7 +32,9 @@ class JLConv1D(nn.Module):
         if n_components >= self.conv1d.weight.shape[0]:
             raise ValueError(f"Num. components {n_components} is greater than the number of features {self.conv1d.nf}")
         self.S = reduction_method.generate_proj_matrix(n_components, self.conv1d.weight.shape[0], device)
-    
+        if self.reduction_method == JLReductionMethod.LEARNED:
+            self.S = nn.parameter.Parameter(self.S, requires_grad=True)
+
     def forward(self, x):
         size_out = x.size()[:-1] + (self.conv1d.nf,)
         # Same as the original conv1d, but applying the dimensionality reduction
@@ -46,7 +52,9 @@ class JLGPT2Attention(nn.Module):
         if n_components >= self.gpt2_attention.head_dim:
             raise ValueError(f"Num. components {n_components} is greater than the attention head dimension {self.gpt2_attention.head_dim}")
         self.S = reduction_method.generate_proj_matrix(n_components, self.gpt2_attention.head_dim, device)
-    
+        if self.reduction_method == JLReductionMethod.LEARNED:
+            self.S = nn.parameter.Parameter(self.S, requires_grad=True)
+
     def forward(
         self,
         hidden_states: Optional[Tuple[torch.FloatTensor]],

@@ -30,7 +30,7 @@ def get_acc(logits, targets, compute_mean=True):
         return y
 
 
-def run_validation(model, dataset, iterations=200):
+def run_validation(model, dataset, iterations=250):
     losses = torch.zeros(iterations * dataset.batch_size)
     accuracies = torch.zeros_like(losses)
 
@@ -75,9 +75,9 @@ def train_model(model, dataset, log_name, iterations=2500, learning_rate=1e-4):
             pbar.set_description(f'Fine-tuning loss, acc: {loss:.04f}, {acc:.04f}')
 
 
-def generate_model_str(model, desc, reduction_method=None, n_components=None, batch_size=16, temp=0.75, learning_rate=1e-4):
+def generate_model_str(model, jl_application, reduction_method=None, n_components=0, batch_size=16, temp=0.75, learning_rate=1e-4):
     reduction_method_name = reduction_method.name if reduction_method is not None else "None"
-    return f'{model.name_or_path}_desc-{desc}_sketch-{reduction_method_name}_ncomponents-{n_components}_batch-{batch_size}_temp-{temp}_lr-{learning_rate}'
+    return f'{model.name_or_path}_jl-{jl_application}_sketch-{reduction_method_name}_ncomponents-{n_components}_batch-{batch_size}_temp-{temp}_lr-{learning_rate}'
 
 
 def get_gpt2_model(num_labels=5, temp=0.75, device=None):
