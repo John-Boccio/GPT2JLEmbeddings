@@ -116,8 +116,8 @@ def test_model(model):
     return overall_accuracy, class_accuracy
 
 
-TEST_JL_FROM_TRAINED = False
-TEST_JL_FROM_FINE_TUNED = True
+TEST_JL_FROM_TRAINED = True
+TEST_JL_FROM_FINE_TUNED = False
 
 if TEST_JL_FROM_TRAINED:
     test_models_summary_path = Path('results/summary_pre_jl.csv')

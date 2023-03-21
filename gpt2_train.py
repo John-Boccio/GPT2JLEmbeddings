@@ -35,7 +35,7 @@ if TRAIN_JL_CONV1D:
     for n_component_conv1d, reduction_method in itertools.product(n_components_conv1d, reduction_methods):
         model, tokenizer = get_gpt2_model(device=DEVICE)
         log_name = generate_model_str(model, 'conv1d', reduction_method=reduction_method, n_components=n_component_conv1d, batch_size=batch_size, learning_rate=learning_rate)
-        apply_jl_gpt2_conv1d(model, n_component_conv1d, reduction_method, DEVICE)
+        apply_jl_gpt2_conv1d(model, n_component_conv1d, reduction_method, DEVICE, training=True)
         print(f'Training JL conv1d model {log_name}')
         train_model(model, dataset, log_name, learning_rate=learning_rate)
 
@@ -45,6 +45,6 @@ if TRAIN_JL_ATTN:
     for n_component_attn, reduction_method in itertools.product(n_components_attn, reduction_methods):
         model, tokenizer = get_gpt2_model(device=DEVICE)
         log_name = generate_model_str(model, 'attn', reduction_method=reduction_method, n_components=n_component_attn, batch_size=batch_size, learning_rate=learning_rate)
-        apply_jl_gpt2_attention(model, n_component_attn, reduction_method, DEVICE)
+        apply_jl_gpt2_attention(model, n_component_attn, reduction_method, DEVICE, training=True)
         print(f'Training JL attn model {log_name}')
         train_model(model, dataset, log_name, learning_rate=learning_rate)

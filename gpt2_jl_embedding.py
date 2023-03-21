@@ -24,11 +24,13 @@ class JLReductionMethod(Enum):
 
 
 class JLConv1D(nn.Module):
-    def __init__(self, conv1d, n_components, reduction_method, device) -> None:
+    def __init__(self, conv1d, n_components, reduction_method, device, training=False) -> None:
         super().__init__()
         self.conv1d = conv1d
         self.n_components = n_components
         self.reduction_method = reduction_method
+        self.training = training
+        self.device = device
         if n_components >= self.conv1d.weight.shape[0]:
             raise ValueError(f"Num. components {n_components} is greater than the number of features {self.conv1d.nf}")
         self.S = reduction_method.generate_proj_matrix(n_components, self.conv1d.weight.shape[0], device)
@@ -38,17 +40,21 @@ class JLConv1D(nn.Module):
     def forward(self, x):
         size_out = x.size()[:-1] + (self.conv1d.nf,)
         # Same as the original conv1d, but applying the dimensionality reduction
+        if self.training and self.reduction_method != JLReductionMethod.LEARNED:
+            self.S = self.reduction_method.generate_proj_matrix(self.n_components, self.conv1d.weight.shape[0], self.device)
         x = torch.addmm(self.conv1d.bias, x.view(-1, x.size(-1)) @ self.S.T, self.S @ self.conv1d.weight)
         x = x.view(*size_out)
         return x
 
 
 class JLGPT2Attention(nn.Module):
-    def __init__(self, gpt2_attention: GPT2Attention, n_components, reduction_method, device) -> None:
+    def __init__(self, gpt2_attention: GPT2Attention, n_components, reduction_method, device, training=False) -> None:
         super().__init__()
         self.gpt2_attention = gpt2_attention
         self.n_components = n_components
         self.reduction_method = reduction_method
+        self.training = training
+        self.device = device
         if n_components >= self.gpt2_attention.head_dim:
             raise ValueError(f"Num. components {n_components} is greater than the attention head dimension {self.gpt2_attention.head_dim}")
         self.S = reduction_method.generate_proj_matrix(n_components, self.gpt2_attention.head_dim, device)
@@ -84,7 +90,10 @@ class JLGPT2Attention(nn.Module):
             attention_mask = encoder_attention_mask
         else:
             query, key, value = self.gpt2_attention.c_attn(hidden_states).split(self.gpt2_attention.split_size, dim=2)
-        
+
+        if self.training and self.reduction_method != JLReductionMethod.LEARNED:
+            self.S = self.reduction_method.generate_proj_matrix(self.n_components, self.gpt2_attention.head_dim, self.device)
+
         query = self.gpt2_attention._split_heads(query, self.gpt2_attention.num_heads, self.gpt2_attention.head_dim) @ self.S.T
         key = self.gpt2_attention._split_heads(key, self.gpt2_attention.num_heads, self.gpt2_attention.head_dim) @ self.S.T
         value = self.gpt2_attention._split_heads(value, self.gpt2_attention.num_heads, self.gpt2_attention.head_dim)
@@ -115,14 +124,14 @@ class JLGPT2Attention(nn.Module):
         return outputs  # a, present, (attentions)
 
 
-def apply_jl_gpt2_attention(model: GPT2Model, n_components, reduction_method, device):
+def apply_jl_gpt2_attention(model: GPT2Model, n_components, reduction_method, device, training=False):
     for gpt2_block in model.transformer.h: #type: GPT2Block
-        gpt2_block.attn = JLGPT2Attention(gpt2_block.attn, n_components, reduction_method, device)
+        gpt2_block.attn = JLGPT2Attention(gpt2_block.attn, n_components, reduction_method, device, training)
 
 
-def apply_jl_gpt2_conv1d(model: GPT2Model, n_components, reduction_method, device):
+def apply_jl_gpt2_conv1d(model: GPT2Model, n_components, reduction_method, device, training=False):
     for gpt2_block in model.transformer.h:
-        gpt2_block.attn.c_attn = JLConv1D(gpt2_block.attn.c_attn, n_components, reduction_method, device)
+        gpt2_block.attn.c_attn = JLConv1D(gpt2_block.attn.c_attn, n_components, reduction_method, device, training)
 
 
 def compute_jl_gpt2_attention_flops_savings(model: GPT2Model, n_components, tokens=256):
