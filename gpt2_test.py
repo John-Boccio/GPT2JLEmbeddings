@@ -12,17 +12,17 @@ import pandas as pd
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-batch_size = 128
+batch_size = 32
 test_iterations = 1000
 
 model, tokenizer = get_gpt2_model(device=DEVICE)
-dataset = amazon_dataset.AmazonBookReviewDataset(tokenizer, batch_size=batch_size, max_length=100, device=DEVICE)
+dataset = amazon_dataset.AmazonBookReviewDataset(tokenizer, batch_size=batch_size, max_length=256, device=DEVICE)
 
 test_results_cols = ['Reduction Method', 'N Components', 'JL Applied', 'Test Acc', '1 Star Acc', '2 Star Acc', '3 Star Acc', '4 Star Acc', '5 Star Acc']
 csv_dict = {col: [] for col in test_results_cols}
 results_df = pd.DataFrame.from_dict(csv_dict)
 
-pretrained_model_path = Path('gpt2_desc-no-jl_sketch-None_ncomponents-None_batch-8_temp-0.75_lr-0.0001/best.pt')
+pretrained_model_path = Path('models/gpt2_jl-None_sketch-None_ncomponents-0_batch-8_temp-0.75_lr-0.0001/best.pt')
 
 
 def model_info_from_name(name: str) -> dict:
@@ -48,7 +48,10 @@ def test_model_from_dir(model_dir: Path):
 
     jl_application = model_info['JL Applied']
     n_components = model_info['N Components']
-    reduction_method = JLReductionMethod.__members__[model_info['Reduction Method']]
+
+    reduction_method = None
+    if model_info['Reduction Method'] != 'None':
+        reduction_method = JLReductionMethod.__members__[model_info['Reduction Method']]
 
     best_model_path = model_dir / 'best.pt'
     if jl_application == 'attn':
@@ -140,6 +143,7 @@ if TEST_JL_FROM_FINE_TUNED:
     test_models_summary_path = Path('results/summary_post_jl.csv')
 
     model_info = test_model_from_fine_tuned(None, None)
+    print(model_info)
     results_df = results_df.append(model_info, ignore_index=True)
 
     for n_component_conv1d, reduction_method in itertools.product(n_components_conv1d, reduction_methods):

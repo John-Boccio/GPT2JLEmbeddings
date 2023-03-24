@@ -38,13 +38,13 @@ def run_validation(model, dataset, iterations=250):
         for i in range(iterations): 
             x_, y_ = dataset.get_random_val_batch()       
             logits = model(**x_).logits
-            loss = nn.functional.cross_entropy(logits, y_, weight=dataset.class_weight)
+            loss = nn.functional.cross_entropy(logits, y_)
             losses[i] = loss.item()
             accuracies[i*dataset.batch_size:(i+1)*dataset.batch_size] = get_acc(logits, y_, compute_mean=False)
-    return torch.mean(loss).item(), torch.mean(accuracies).item()
+    return torch.mean(losses).item(), torch.mean(accuracies).item()
 
 
-def train_model(model, dataset, log_name, iterations=2500, learning_rate=1e-4):
+def train_model(model, dataset, log_name, iterations=4000, learning_rate=1e-4):
     model.train()
 
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -55,7 +55,7 @@ def train_model(model, dataset, log_name, iterations=2500, learning_rate=1e-4):
     for step in pbar:
         x_, y_ = dataset.get_random_train_batch()
         logits = model(**x_).logits
-        loss = nn.functional.cross_entropy(logits, y_, weight=dataset.class_weight)
+        loss = nn.functional.cross_entropy(logits, y_)
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
@@ -63,7 +63,7 @@ def train_model(model, dataset, log_name, iterations=2500, learning_rate=1e-4):
         writer.add_scalar('Loss/train', loss.item(), step)
         writer.add_scalar('Accuracy/train', get_acc(logits, y_), step)
 
-        if step % 100 == 0 or step == (iterations-1):
+        if step % 250 == 0 or step == (iterations-1):
             with torch.inference_mode():
                 loss, acc = run_validation(model, dataset)
                 Path(f'models/{log_name}/').mkdir(exist_ok=True)
@@ -83,6 +83,18 @@ def generate_model_str(model, jl_application, reduction_method=None, n_component
 def get_gpt2_model(num_labels=5, temp=0.75, device=None):
     model = transformers.AutoModelForSequenceClassification.from_pretrained("gpt2", num_labels=num_labels, temperature=temp).to(device)
     tokenizer = transformers.AutoTokenizer.from_pretrained("gpt2")
+
+    tokenizer.padding_side = 'left'
+    tokenizer.pad_token = tokenizer.eos_token
+    model.resize_token_embeddings(len(tokenizer))
+    model.config.pad_token_id = model.config.eos_token_id
+
+    return model, tokenizer
+
+
+def get_gpt2_lm_model():
+    tokenizer = transformers.AutoTokenizer.from_pretrained("gpt2-medium")
+    model = transformers.GPT2LMHeadModel.from_pretrained("gpt2-medium")
 
     tokenizer.padding_side = 'left'
     tokenizer.pad_token = tokenizer.eos_token

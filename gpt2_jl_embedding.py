@@ -13,13 +13,10 @@ class JLReductionMethod(Enum):
     LEARNED = 2
 
     def generate_proj_matrix(self, n_components, n_features, device):
-        if self == self.GAUSSIAN:
+        if self == self.GAUSSIAN or self == self.LEARNED:
             S = torch.tensor(_gaussian_random_matrix(n_components, n_features), dtype=torch.float, device=device)
         elif self == self.SPARSE:
             S = torch.tensor(_sparse_random_matrix(n_components, n_features).todense(), dtype=torch.float, device=device)
-        elif self == self.LEARNED:
-            S = torch.empty(n_components, n_features, dtype=torch.float, device=device)
-            nn.init.normal_(S, 0.0, 0.02)
         return S
 
 
@@ -124,14 +121,26 @@ class JLGPT2Attention(nn.Module):
         return outputs  # a, present, (attentions)
 
 
-def apply_jl_gpt2_attention(model: GPT2Model, n_components, reduction_method, device, training=False):
-    for gpt2_block in model.transformer.h: #type: GPT2Block
+def apply_jl_gpt2_attention(model: GPT2Model, n_components, reduction_method, device, training=False, count=None):
+    if count is None:
+        count = len(model.transformer.h)
+    model.transformer.wte.requires_grad = False
+    model.transformer.wpe.requires_grad = False
+    for idx, gpt2_block in enumerate(model.transformer.h): #type: GPT2Block
         gpt2_block.attn = JLGPT2Attention(gpt2_block.attn, n_components, reduction_method, device, training)
+        if idx < count:
+            gpt2_block.requires_grad = False
 
 
-def apply_jl_gpt2_conv1d(model: GPT2Model, n_components, reduction_method, device, training=False):
-    for gpt2_block in model.transformer.h:
+def apply_jl_gpt2_conv1d(model: GPT2Model, n_components, reduction_method, device, training=False, count=None):
+    if count is None:
+        count = len(model.transformer.h)
+    model.transformer.wte.requires_grad = False
+    model.transformer.wpe.requires_grad = False
+    for idx, gpt2_block in enumerate(model.transformer.h):
         gpt2_block.attn.c_attn = JLConv1D(gpt2_block.attn.c_attn, n_components, reduction_method, device, training)
+        if idx < count:
+            gpt2_block.requires_grad = False
 
 
 def compute_jl_gpt2_attention_flops_savings(model: GPT2Model, n_components, tokens=256):
