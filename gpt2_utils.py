@@ -90,15 +90,3 @@ def get_gpt2_model(num_labels=5, temp=0.75, device=None):
     model.config.pad_token_id = model.config.eos_token_id
 
     return model, tokenizer
-
-
-def get_gpt2_lm_model():
-    tokenizer = transformers.AutoTokenizer.from_pretrained("gpt2-medium")
-    model = transformers.GPT2LMHeadModel.from_pretrained("gpt2-medium")
-
-    tokenizer.padding_side = 'left'
-    tokenizer.pad_token = tokenizer.eos_token
-    model.resize_token_embeddings(len(tokenizer))
-    model.config.pad_token_id = model.config.eos_token_id
-
-    return model, tokenizer
