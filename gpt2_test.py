@@ -119,8 +119,8 @@ def test_model(model):
     return overall_accuracy, class_accuracy
 
 
-TEST_JL_FROM_TRAINED = True
-TEST_JL_FROM_FINE_TUNED = False
+TEST_JL_FROM_TRAINED = False
+TEST_JL_FROM_FINE_TUNED = True
 
 if TEST_JL_FROM_TRAINED:
     test_models_summary_path = Path('results/summary_pre_jl.csv')
@@ -136,8 +136,8 @@ if TEST_JL_FROM_TRAINED:
 
 
 if TEST_JL_FROM_FINE_TUNED:
-    n_components_attn = [56, 48, 40, 32, 24, 16, 8, 4, 2]
-    n_components_conv1d = [672, 576, 480, 384, 288, 192, 96, 48, 24]
+    n_components_attn = [56, 40, 24, 8, 2]
+    n_components_conv1d = [672, 480, 288, 96, 24]
     reduction_methods = [gpt2_jl_embedding.JLReductionMethod.GAUSSIAN, gpt2_jl_embedding.JLReductionMethod.SPARSE]
 
     test_models_summary_path = Path('results/summary_post_jl.csv')
